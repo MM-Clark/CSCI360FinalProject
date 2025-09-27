@@ -8,3 +8,5 @@ The ticketing app provides a payment system for student, faculty members, and no
 There will be a set amount of seats reserved for certain populations (faculty, handicap, etc.). Seats of different tiers will be offered for different prices. While the app will be open to non-students, students and faculty will receive ticket discounts. 
 
 The app will securely use credit card information for payment for reservations. The app will also accept other contactless payment systems, like Apple Pay, PayPal, and Google Pay. Tickets will be available online, to print, or to pick up at the box office. These provided functions solve the problem of current decentralized payment systems for various events at CofC. 
+
+The main branch contains relevant diagrams and the current working version of the app, while the old branch contains previous versions of the app. 
