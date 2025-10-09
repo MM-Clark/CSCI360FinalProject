@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Calendar, MapPin, QrCode, Users, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Users, Send, CheckCircle, XCircle, Trash2, Search, PlusCircle, Edit } from 'lucide-react';
 
 // API Configuration
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -59,9 +59,25 @@ const api = {
       method: 'POST',
       body: JSON.stringify({ scanId, enforcerId }),
     }),
+    
+  // --- ADMIN API FUNCTIONS ---
+  getUsers: () => api.request('/admin/users'),
+
+  createEvent: (eventData) => 
+    api.request('/admin/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
+    }),
+
+  deleteEvent: (eventId) => 
+    api.request(`/admin/events/${eventId}`, {
+      method: 'DELETE',
+    }),
+    // NOTE: Update event functionality would be added here
 };
 
-// Components
+// Components (Rest of the file)
+
 const MyTickets = React.memo(({
   userTickets,
   transferTargetEmail,
@@ -223,6 +239,209 @@ const TicketValidation = ({ currentUser }) => {
   );
 };
 
+// --- NEW ADMIN COMPONENT ---
+
+const AdminManagement = ({ loadEvents }) => {
+    const [allUsers, setAllUsers] = useState([]);
+    const [view, setView] = useState('users'); // 'users' or 'events'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [newEvent, setNewEvent] = useState({
+        name: '', venue: '', date: '', time: '19:00:00', capacity: 0, description: '', category: 'Sports'
+    });
+    
+    useEffect(() => {
+        if (view === 'users') {
+            fetchUsers();
+        }
+    }, [view]);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const data = await api.getUsers();
+            setAllUsers(data.users);
+        } catch (err) {
+            console.error('Failed to fetch users:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateEvent = async () => {
+        if (!newEvent.name || !newEvent.venue || !newEvent.date || !newEvent.capacity || newEvent.capacity <= 0) {
+            alert('Please fill out all required event fields (Name, Venue, Date, Capacity > 0).');
+            return;
+        }
+        setLoading(true);
+        try {
+            const result = await api.createEvent(newEvent);
+            alert(`Success: ${result.message}`);
+            // Reload the events list in the main App component
+            await loadEvents(); 
+            // Reset form
+            setNewEvent({ name: '', venue: '', date: '', time: '19:00:00', capacity: 0, description: '', category: 'Sports' });
+            setView('events'); 
+        } catch (err) {
+            alert('Failed to create event. Check server logs.');
+            console.error('Create event error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteEvent = async (eventId, eventName) => {
+        if (!window.confirm(`WARNING: Are you sure you want to delete the event "${eventName}"? This will delete all associated seats and tickets and cannot be undone.`)) return;
+
+        setLoading(true);
+        try {
+            const result = await api.deleteEvent(eventId);
+            alert(`Success: ${result.message}`);
+            await loadEvents(); 
+        } catch (err) {
+            alert('Failed to delete event. Check server logs.');
+            console.error('Delete event error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredUsers = allUsers.filter(user => 
+        user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const EventManagement = () => (
+        <div className="space-y-6">
+            <h3 className="text-2xl font-bold text-white mb-4">Event Management</h3>
+            
+            <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <h4 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <PlusCircle size={20} className="text-green-400" /> Create New Event
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="Name" value={newEvent.name} onChange={e => setNewEvent({...newEvent, name: e.target.value})} className="p-3 bg-gray-700 rounded text-white" />
+                    <input type="text" placeholder="Venue" value={newEvent.venue} onChange={e => setNewEvent({...newEvent, venue: e.target.value})} className="p-3 bg-gray-700 rounded text-white" />
+                    <input type="date" placeholder="Date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="p-3 bg-gray-700 rounded text-white" />
+                    <input type="time" placeholder="Time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} className="p-3 bg-gray-700 rounded text-white" />
+                    <input type="number" placeholder="Capacity (e.g., 5000)" value={newEvent.capacity} onChange={e => setNewEvent({...newEvent, capacity: parseInt(e.target.value) || 0})} className="p-3 bg-gray-700 rounded text-white" />
+                    <select value={newEvent.category} onChange={e => setNewEvent({...newEvent, category: e.target.value})} className="p-3 bg-gray-700 rounded text-white">
+                        <option value="Sports">Sports</option>
+                        <option value="Theatre">Theatre</option>
+                        <option value="Music">Music</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <textarea placeholder="Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="w-full mt-4 p-3 bg-gray-700 rounded text-white h-24"></textarea>
+                <button onClick={handleCreateEvent} disabled={loading} className="w-full mt-4 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50">
+                    {loading ? 'Creating...' : 'Create Event'}
+                </button>
+            </div>
+
+            <h4 className="text-xl font-semibold text-white mb-2">Existing Events</h4>
+            <div className="space-y-3">
+                {events.map(event => (
+                    <div key={event.id} className="bg-gray-800 p-4 rounded-lg flex items-center justify-between border border-gray-700">
+                        <div className="flex-grow">
+                            <p className="font-bold text-lg text-blue-400">{event.name}</p>
+                            <p className="text-sm text-gray-400">{event.venue} - {event.date}</p>
+                        </div>
+                        <div className="flex gap-2">
+                            {/* <button className="p-2 bg-yellow-600 rounded-lg hover:bg-yellow-700" title="Edit Event"><Edit size={18} /></button> */}
+                            <button onClick={() => handleDeleteEvent(event.id, event.name)} className="p-2 bg-red-600 rounded-lg hover:bg-red-700" title="Delete Event" disabled={loading}>
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const UserManagement = () => (
+        <div className="space-y-6">
+            <h3 className="text-2xl font-bold text-white mb-4">User Management</h3>
+            <div className="flex items-center bg-gray-800 p-3 rounded-xl border border-gray-700">
+                <Search size={20} className="text-gray-400 mr-3" />
+                <input 
+                    type="text" 
+                    placeholder="Search users by name, username, or email..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="flex-grow p-1 bg-transparent text-white focus:outline-none"
+                />
+            </div>
+
+            {loading ? (
+                <p className="text-gray-400">Loading user list...</p>
+            ) : (
+                <div className="space-y-3">
+                    {filteredUsers.map(user => (
+                        <div key={user.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="font-bold text-xl text-white">{user.name}</p>
+                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                    user.role === 'admin' ? 'bg-red-800 text-red-100' :
+                                    user.role === 'enforcer' ? 'bg-purple-800 text-purple-100' :
+                                    'bg-blue-800 text-blue-100'
+                                }`}>
+                                    {user.role.toUpperCase()}
+                                </span>
+                            </div>
+                            <div className="text-sm text-gray-400 space-y-1">
+                                <p><strong>Username:</strong> {user.username}</p>
+                                <p><strong>Email:</strong> {user.email}</p>
+                                <p><strong>Joined:</strong> {new Date(user.createdAt).toLocaleDateString()}</p>
+                                {user.role === 'buyer' && (
+                                    <p>
+                                        <strong>Accommodations:</strong> 
+                                        {user.hasAccommodations ? 
+                                            <span className="text-yellow-400 ml-1">Yes (Handicap: {user.handicapAccessible ? 'Y' : 'N'}, Faculty: {user.facultyRestricted ? 'Y' : 'N'})</span> : 
+                                            ' No'
+                                        }
+                                    </p>
+                                )}
+                            </div>
+                            {/* NOTE: Add buttons for Edit/Reset Password here for a full implementation */}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-white">Administrator Panel</h2>
+
+            <div className="flex space-x-4 border-b border-gray-700 pb-2">
+                <button 
+                    onClick={() => setView('users')} 
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                        view === 'users' ? 'bg-gray-700 text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:bg-gray-800'
+                    }`}
+                >
+                    User Lookup ({allUsers.length})
+                </button>
+                <button 
+                    onClick={() => setView('events')} 
+                    className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                        view === 'events' ? 'bg-gray-700 text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:bg-gray-800'
+                    }`}
+                >
+                    Event CRUD ({events.length})
+                </button>
+            </div>
+
+            {view === 'users' ? <UserManagement /> : <EventManagement />}
+        </div>
+    );
+};
+
+// --- MAIN APP COMPONENT ---
+
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('events');
@@ -234,11 +453,15 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load events when user logs in
+  // Load data based on user role and login status
   useEffect(() => {
-    if (currentUser && (currentUser.role === 'buyer' || currentUser.role === 'admin')) {
-      loadEvents();
-      loadUserTickets();
+    if (currentUser) {
+      if (currentUser.role === 'buyer' || currentUser.role === 'admin') {
+        loadEvents();
+      }
+      if (currentUser.role === 'buyer') {
+        loadUserTickets();
+      }
     }
   }, [currentUser]);
 
@@ -256,7 +479,7 @@ function App() {
   };
 
   const loadUserTickets = async () => {
-    if (!currentUser) return;
+    if (!currentUser || currentUser.role !== 'buyer') return;
     try {
       const data = await api.getUserTickets(currentUser.id);
       setUserTickets(data.tickets);
@@ -340,7 +563,8 @@ function App() {
       try {
         const data = await api.login(username, password);
         setCurrentUser(data.user);
-        if (data.user.role === 'enforcer') setActiveTab('validate');
+        if (data.user.role === 'admin') setActiveTab('admin');
+        else if (data.user.role === 'enforcer') setActiveTab('validate');
         else setActiveTab('events');
       } catch (err) {
         setLoginError(true);
@@ -421,8 +645,12 @@ function App() {
   const SeatSelection = () => {
     if (!selectedEvent) return <EventList />;
 
+    // Restrict seat booking if the current user is an admin
+    const isAdmin = currentUser.role === 'admin';
+    const canBook = !isAdmin;
+
     const handleSeatSelect = (seat) => {
-      if (seat.isBooked) return;
+      if (seat.isBooked || !canBook) return;
       setSelectedSeat(seat);
     };
 
@@ -435,6 +663,8 @@ function App() {
     };
 
     const bookSeat = async () => {
+      if (!canBook) return alert("Administrators cannot purchase tickets.");
+
       try {
         setLoading(true);
         const result = await api.bookTicket(currentUser.id, selectedEvent.id, selectedSeat.id);
@@ -457,6 +687,9 @@ function App() {
           ← Back
         </button>
         <h2 className="text-2xl font-bold text-white">{selectedEvent.name}</h2>
+
+        {isAdmin && <p className="text-red-400 font-bold mb-4">NOTE: Admin accounts cannot purchase tickets.</p>}
+        
         {selectedEvent.auditoriums?.map(aud => (
           <div key={aud.id} className="bg-gray-900 text-white rounded-xl shadow-lg p-6">
             <div className="text-center mb-6 bg-gray-800 text-white py-3 rounded-lg">STAGE</div>
@@ -465,14 +698,14 @@ function App() {
                 <button 
                   key={seat.id} 
                   onClick={() => handleSeatSelect(seat)} 
-                  disabled={seat.isBooked}
+                  disabled={seat.isBooked || !canBook} // Disable if admin
                   className={`w-7 h-7 text-xs rounded ${getSeatColor(seat)}`}
                 >
                   {seat.column}
                 </button>
               ))}
             </div>
-            {selectedSeat && (
+            {selectedSeat && canBook && (
               <div className="mt-6 p-4 bg-gray-800 rounded-lg">
                 <p>Row {selectedSeat.row}, Seat {selectedSeat.column}</p>
                 <p>Price: ${selectedSeat.price}</p>
@@ -507,16 +740,25 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="text-xl font-bold">Box Office Dragon</h1>
           <div className="flex gap-4">
-            {(currentUser.role === 'buyer' || currentUser.role === 'admin') && (
-              <>
-                <button onClick={() => {setActiveTab('events'); setSelectedEvent(null);}} className={`px-4 py-2 rounded ${activeTab === 'events' ? 'bg-gray-800' : ''}`}>
-                  Events
+            {/* Conditional tabs based on user role */}
+            {currentUser.role === 'admin' && (
+                <button onClick={() => setActiveTab('admin')} className={`px-4 py-2 rounded ${activeTab === 'admin' ? 'bg-gray-800' : ''}`}>
+                  Admin Management
                 </button>
-                <button onClick={() => setActiveTab('tickets')} className={`px-4 py-2 rounded ${activeTab === 'tickets' ? 'bg-gray-800' : ''}`}>
-                  My Tickets
-                </button>
-              </>
             )}
+            
+            {(currentUser.role === 'buyer' || currentUser.role === 'admin') && (
+              <button onClick={() => {setActiveTab('events'); setSelectedEvent(null);}} className={`px-4 py-2 rounded ${activeTab === 'events' ? 'bg-gray-800' : ''}`}>
+                Events
+              </button>
+            )}
+            
+            {currentUser.role === 'buyer' && (
+              <button onClick={() => setActiveTab('tickets')} className={`px-4 py-2 rounded ${activeTab === 'tickets' ? 'bg-gray-800' : ''}`}>
+                My Tickets
+              </button>
+            )}
+
             {currentUser.role === 'enforcer' && (
               <button onClick={() => setActiveTab('validate')} className={`px-4 py-2 rounded ${activeTab === 'validate' ? 'bg-gray-800' : ''}`}>
                 Validate Tickets
@@ -527,8 +769,9 @@ function App() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {activeTab === 'admin' && currentUser.role === 'admin' && <AdminManagement loadEvents={loadEvents} events={events} />}
         {activeTab === 'events' && <SeatSelection />}
-        {activeTab === 'tickets' && (
+        {activeTab === 'tickets' && currentUser.role === 'buyer' && (
           <MyTickets 
             userTickets={userTickets}
             transferTargetEmail={transferTargetEmail}
@@ -547,3 +790,5 @@ function App() {
 }
 
 export default App;
+
+
