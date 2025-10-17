@@ -52,13 +52,13 @@ try {
 
 // Firestore Paths (using recommended artifact/appId structure)
 const USERS_COLLECTION = `artifacts/${appId}/user_profiles`;
-// FIX: Using an odd number of segments (5 segments total) for a collection path:
-// artifacts/{appId}/events/list 
-const EVENTS_COLLECTION_PATH = `artifacts/${appId}/events/list`;
+// FIX APPLIED: Using a definitive 3-segment path for the events collection:
+// Collection: artifacts / Document: {appId} / Collection: events_list
+const EVENTS_COLLECTION_PATH = `artifacts/${appId}/events_list`;
 const TICKETS_COLLECTION_BASE = `artifacts/${appId}/tickets`;
 
 // Helper functions for collection references
-// FIX: Simpified to use the full 5-segment path directly
+// FIX: Uses the new 3-segment path directly.
 const getPublicEventsPath = () => collection(db, EVENTS_COLLECTION_PATH);
 const getUserProfilesPath = () => collection(db, USERS_COLLECTION);
 const getUserTicketsPath = (uid) => collection(db, `${TICKETS_COLLECTION_BASE}/${uid}/user_tickets`);
