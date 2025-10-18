@@ -1,0 +1,41 @@
+{
+  "name": "box-office-dragon",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "firebase": "^12.4.0",
+    "lucide-react": "^0.263.1",
+    "mysql2": "^3.15.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "save-dev": "^0.0.1-security"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "eslint-config-react-app": "^7.0.1",
+    "react-scripts": "^5.0.1"
+  }
+}
